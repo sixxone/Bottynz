@@ -1,0 +1,40 @@
+const md = require('mdcode')
+
+const sesi = "abc"
+
+const start = async () => {
+const code = await md.startSession(sesi);
+
+md.onConnected(async (session) => {
+  console.log("Sukses terhubung di sesi  : " + session);
+})
+
+md.onMessageReceived(async(xyz)=>{
+  if (xyz.key.fromMe || xyz.key.remoteJid.includes("status")) return;  
+  const isGroup = xyz.key.remoteJid.endsWith('@g.us');
+  const bot = code.user ? code.user.id.split(':')[0] + '@s.whatsapp.net' : '';  
+  const user = xyz.key ? xyz.key.participant || xyz.key.remoteJid : '';    
+  const groupMetadata = isGroup ? await code.groupMetadata(xyz.key.remoteJid) : '';
+  const uwong = isGroup ? await groupMetadata.participants : ''; 
+  const groupAdmins = isGroup ? await uwong.filter(v => v.admin !== null).map(a => a.id) : '';
+  const isBotGroupAdmins = groupAdmins.includes(bot) || false;
+    
+  var text = xyz.message?.extendedTextMessage?.text || xyz.message?.conversation || xyz.message?.pollCreationMessageV3?.name || xyz.message?.pollCreationMessage?.name || xyz.message?.imageMessage?.caption || xyz.message?.documentWithCaptionMessage?.message?.documentMessage?.caption || '';   
+  if (text !== ""){
+    text = text.toLowerCase();
+  }
+  const link = ["chat.whatsapp.com", "open ft cs"];
+
+  const containsLink = link.some(keyword => text.includes(keyword));
+  
+  if (containsLink) {
+    if (isGroup){
+      if (!isBotGroupAdmins) return
+      code.sendMessage(xyz.key.remoteJid, { delete: xyz.key })
+      code.groupParticipantsUpdate(xyz.key.remoteJid, [user], "remove")
+    }
+  } 
+  
+})
+}
+start()
